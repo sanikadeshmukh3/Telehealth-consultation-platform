@@ -1,0 +1,30 @@
+{
+  "name": "telehealth-backend",
+  "version": "1.0.0",
+  "description": "MERN telehealth platform backend with WebRTC signaling and an agentic in-call documentation service",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.5.0",
+    "socket.io": "^4.7.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "bullmq": "^5.7.8",
+    "ioredis": "^5.4.1",
+    "@deepgram/sdk": "^3.5.0",
+    "@langchain/anthropic": "^0.2.0",
+    "@langchain/core": "^0.2.0",
+    "langchain": "^0.2.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
