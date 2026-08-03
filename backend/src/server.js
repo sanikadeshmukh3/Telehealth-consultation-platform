@@ -4,6 +4,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { Server as SocketIOServer } from "socket.io";
 import { connectDB } from "./config/db.js";
+import authRoutes from "./routes/auth.js";
+import consultationRoutes from "./routes/consultations.js";
 
 dotenv.config();
 
@@ -16,6 +18,9 @@ app.use(express.json());
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+app.use("/api/auth", authRoutes);
+app.use("/api/consultations", consultationRoutes);
 
 // --- HTTP + Socket.io share the same server instance ---
 // We need this (rather than app.listen) because Socket.io needs direct
