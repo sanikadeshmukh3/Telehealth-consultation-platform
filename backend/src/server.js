@@ -6,6 +6,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import consultationRoutes from "./routes/consultations.js";
+import { registerSignalingHandlers } from "./sockets/signaling.js";
 
 dotenv.config();
 
@@ -30,14 +31,9 @@ const io = new SocketIOServer(httpServer, {
   cors: { origin: process.env.CLIENT_URL, credentials: true },
 });
 
-// Placeholder — this is where WebRTC signaling logic will be registered
-// once we build step 3. Kept separate so server.js doesn't get bloated.
-io.on("connection", (socket) => {
-  console.log(`Socket connected: ${socket.id}`);
-  socket.on("disconnect", () => {
-    console.log(`Socket disconnected: ${socket.id}`);
-  });
-});
+// WebRTC signaling — relays offer/answer/ICE candidates between peers.
+// See src/sockets/signaling.js for the full flow explanation.
+registerSignalingHandlers(io);
 
 const PORT = process.env.PORT || 5000;
 
