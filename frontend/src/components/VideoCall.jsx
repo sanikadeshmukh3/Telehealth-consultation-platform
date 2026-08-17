@@ -1,14 +1,25 @@
 import { useWebRTCCall } from "../hooks/useWebRTCCall";
 
-export default function VideoCall({ roomId, userId }) {
-  const { localVideoRef, remoteVideoRef, connectionState, hangUp } =
+export default function VideoCall({ roomId, userId, onHangUp }) {
+  const { localVideoRef, remoteVideoRef, connectionState, error, hangUp } =
     useWebRTCCall({ roomId, userId });
+
+  function handleHangUp() {
+    hangUp();
+    onHangUp?.();
+  }
 
   return (
     <div style={{ padding: "1rem" }}>
       <p>
         Status: <strong>{connectionState}</strong> — Room: <code>{roomId}</code>
       </p>
+
+      {error && (
+        <p style={{ color: "red", maxWidth: "500px" }}>
+          Error: {error}
+        </p>
+      )}
 
       <div style={{ display: "flex", gap: "1rem" }}>
         <div>
@@ -32,7 +43,7 @@ export default function VideoCall({ roomId, userId }) {
         </div>
       </div>
 
-      <button onClick={hangUp} style={{ marginTop: "1rem" }}>
+      <button onClick={handleHangUp} style={{ marginTop: "1rem" }}>
         Hang up
       </button>
     </div>
