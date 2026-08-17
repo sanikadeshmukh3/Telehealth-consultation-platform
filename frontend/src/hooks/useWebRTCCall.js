@@ -28,7 +28,7 @@ export function useWebRTCCall({ roomId, userId }) {
         // On plain http://<network-ip>, this call will reject.
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error(
-            "Camera access unavailable — this page must be served over HTTPS or localhost."
+            "Camera access unavailable — this page must be served over HTTPS or localhost.",
           );
         }
 
@@ -43,11 +43,39 @@ export function useWebRTCCall({ roomId, userId }) {
         const socket = io(SOCKET_URL);
         socketRef.current = socket;
         socket.emit("join-room", { roomId, userId });
+
+        // --- Audio capture for transcription ---
+        // Captures ONLY this participant's own mic audio (not the peer's) and
+        // streams it to the backend for Deepgram. Runs independently of the
+        // WebRTC peer connection itself.
+        const audioOnlyStream = new MediaStream(localStream.getAudioTracks());
+        const mediaRecorder = new MediaRecorder(audioOnlyStream, {
+          mimeType: "audio/webm;codecs=opus",
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            socket.emit("audio-chunk", event.data);
+          }
+        };
+
+        // Fires every 250ms — small enough for near-real-time transcription
+        // without flooding the socket connection.
+        mediaRecorder.start(250);
+
+        socket.emit("start-transcription", {
+          consultationId: roomId, // using roomId as a stand-in until real consultation booking is wired up
+          roomId,
+          speaker: "patient", // hardcoded for now — will come from logged-in user's role later
+        });
+
         setConnectionState("connecting");
 
         const pc = new RTCPeerConnection(ICE_SERVERS);
         peerConnectionRef.current = pc;
-        localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+        localStream
+          .getTracks()
+          .forEach((track) => pc.addTrack(track, localStream));
 
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
@@ -107,6 +135,7 @@ export function useWebRTCCall({ roomId, userId }) {
 
     return () => {
       localStream?.getTracks().forEach((track) => track.stop());
+      mediaRecorder?.stop();
       peerConnectionRef.current?.close();
       socketRef.current?.emit("hang-up", { roomId });
       socketRef.current?.disconnect();

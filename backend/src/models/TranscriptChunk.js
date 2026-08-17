@@ -2,9 +2,13 @@ import mongoose from "mongoose";
 
 const transcriptChunkSchema = new mongoose.Schema(
   {
+    // NOTE: temporarily a String instead of an ObjectId ref to Consultation.
+    // Right now the frontend sends the raw room ID (e.g. "test-room-1")
+    // since we haven't wired the video call up to real booked consultations
+    // yet. Once that's connected, this should go back to:
+    //   { type: mongoose.Schema.Types.ObjectId, ref: "Consultation", required: true }
     consultation: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Consultation",
+      type: String,
       required: true,
     },
 

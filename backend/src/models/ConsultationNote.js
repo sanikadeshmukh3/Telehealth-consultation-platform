@@ -14,7 +14,7 @@ const actionItemSchema = new mongoose.Schema(
       default: "suggested",
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const soapSchema = new mongoose.Schema(
@@ -24,16 +24,17 @@ const soapSchema = new mongoose.Schema(
     assessment: { type: String, default: "" }, // provider's clinical judgment
     plan: { type: String, default: "" }, // next steps
   },
-  { _id: false }
+  { _id: false },
 );
 
 const consultationNoteSchema = new mongoose.Schema(
   {
+    // NOTE: temporarily a String instead of an ObjectId ref, matching the same
+    // fix applied to TranscriptChunk — revert once real consultations are wired up.
     consultation: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Consultation",
+      type: String,
       required: true,
-      unique: true, // one note per consultation
+      unique: true,
     },
 
     // The agent's in-progress draft, updated repeatedly during the call.
@@ -67,7 +68,7 @@ const consultationNoteSchema = new mongoose.Schema(
     // rate-limiting how often we re-invoke it.
     revisionCount: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("ConsultationNote", consultationNoteSchema);

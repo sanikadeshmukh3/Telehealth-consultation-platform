@@ -7,6 +7,7 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import consultationRoutes from "./routes/consultations.js";
 import { registerSignalingHandlers } from "./sockets/signaling.js";
+import { registerTranscriptionHandlers } from "./sockets/transcription.js";
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ const io = new SocketIOServer(httpServer, {
 // WebRTC signaling — relays offer/answer/ICE candidates between peers.
 // See src/sockets/signaling.js for the full flow explanation.
 registerSignalingHandlers(io);
+registerTranscriptionHandlers(io);
 
 const PORT = process.env.PORT || 5000;
 
