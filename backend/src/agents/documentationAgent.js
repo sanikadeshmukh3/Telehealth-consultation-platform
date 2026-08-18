@@ -1,54 +1,74 @@
-import { ChatAnthropic } from "@langchain/anthropic";
-import { z } from "zod";
+import Anthropic from "@anthropic-ai/sdk";
 import TranscriptChunk from "../models/TranscriptChunk.js";
 import ConsultationNote from "../models/ConsultationNote.js";
-
-// Structured output schema — forces the model to return exactly this shape
-// instead of freeform text we'd have to parse ourselves.
-const soapUpdateSchema = z.object({
-  subjective: z.string().describe(
-    "Patient-reported symptoms, history, and context. Full merged text, not just what's new."
-  ),
-  objective: z.string().describe("Observable/measurable findings mentioned."),
-  assessment: z.string().describe("Clinical impression based on the conversation so far."),
-  plan: z.string().describe("Next steps: treatment, referrals, follow-up."),
-  actionItems: z
-    .array(
-      z.object({
-        type: z.enum(["prescription", "referral", "lab_order", "follow_up", "other"]),
-        detail: z.string(),
-      })
-    )
-    .describe("Concrete action items mentioned or implied in the conversation."),
-  agentFlags: z
-    .array(z.string())
-    .describe(
-      "Anything uncertain that needs provider verification — e.g. an unclear medication name or ambiguous symptom."
-    ),
-});
 
 // Lazy-initialized for the same reason as the Deepgram client: this file is
 // imported before dotenv.config() runs in server.js, so reading
 // process.env.ANTHROPIC_API_KEY at module load time would get undefined.
-let model = null;
-function getModel() {
-  if (!model) {
-    model = new ChatAnthropic({
-      model: "claude-sonnet-4-5",
-      temperature: 0, // clinical documentation should be consistent, not creative
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    }).withStructuredOutput(soapUpdateSchema);
+let anthropicClient = null;
+function getClient() {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
-  return model;
+  return anthropicClient;
 }
+
+// Using Claude's tool-use feature to force structured JSON output, rather
+// than asking for JSON in prose and hoping it parses cleanly. Claude is
+// required to call this "tool" with arguments matching this exact schema.
+const soapUpdateTool = {
+  name: "update_soap_note",
+  description: "Records the updated SOAP note based on new transcript content.",
+  input_schema: {
+    type: "object",
+    properties: {
+      subjective: {
+        type: "string",
+        description: "Patient-reported symptoms, history, and context. Full merged text, not just what's new.",
+      },
+      objective: {
+        type: "string",
+        description: "Observable/measurable findings mentioned.",
+      },
+      assessment: {
+        type: "string",
+        description: "Clinical impression based on the conversation so far.",
+      },
+      plan: {
+        type: "string",
+        description: "Next steps: treatment, referrals, follow-up.",
+      },
+      actionItems: {
+        type: "array",
+        description: "Concrete action items mentioned or implied in the conversation.",
+        items: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              enum: ["prescription", "referral", "lab_order", "follow_up", "other"],
+            },
+            detail: { type: "string" },
+          },
+          required: ["type", "detail"],
+        },
+      },
+      agentFlags: {
+        type: "array",
+        description: "Anything uncertain that needs provider verification.",
+        items: { type: "string" },
+      },
+    },
+    required: ["subjective", "objective", "assessment", "plan", "actionItems", "agentFlags"],
+  },
+};
 
 /**
  * The core agent loop for one room: pick up any transcript chunks that
  * haven't been processed yet, merge them into the existing draft note
  * (not overwrite it), and save the result.
  *
- * Returns null if there's nothing new to process (avoids a wasted API call
- * and a no-op DB write every 30s when no one's spoken).
+ * Returns null if there's nothing new to process.
  */
 export async function updateDraftNote(roomId) {
   const newChunks = await TranscriptChunk.find({
@@ -80,7 +100,19 @@ Plan: ${note.draftSOAP.plan || "(empty)"}
 NEW TRANSCRIPT:
 ${transcriptText}`;
 
-  const result = await getModel().invoke(prompt);
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-5",
+    max_tokens: 1024,
+    tools: [soapUpdateTool],
+    tool_choice: { type: "tool", name: "update_soap_note" },
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const toolUseBlock = response.content.find((block) => block.type === "tool_use");
+  if (!toolUseBlock) {
+    throw new Error("Claude did not return a tool_use block as expected");
+  }
+  const result = toolUseBlock.input;
 
   note.draftSOAP = {
     subjective: result.subjective,

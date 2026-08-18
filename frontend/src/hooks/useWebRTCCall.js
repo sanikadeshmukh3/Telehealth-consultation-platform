@@ -54,6 +54,7 @@ export function useWebRTCCall({ roomId, userId }) {
         });
 
         mediaRecorder.ondataavailable = (event) => {
+          console.log("Audio chunk captured:", event.data.size, "bytes");
           if (event.data.size > 0) {
             socket.emit("audio-chunk", event.data);
           }
