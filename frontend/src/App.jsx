@@ -1,37 +1,75 @@
 import { useState } from "react";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import AuthForm from "./components/AuthForm";
 import VideoCall from "./components/VideoCall";
+import NoteReview from "./components/NoteReview";
 
-export default function App() {
+function AppContent() {
+  const { user, token, logout } = useAuth();
   const [roomId, setRoomId] = useState("");
   const [joined, setJoined] = useState(false);
-  const [userId] = useState(() => Math.random().toString(36).slice(2, 8));
+
+  if (!user) {
+    return <AuthForm />;
+  }
 
   if (joined) {
     return (
-      <VideoCall
-        roomId={roomId}
-        userId={userId}
-        onHangUp={() => setJoined(false)}
-      />
+      <div className="app-wrapper">
+        <div className="topbar">
+          <div className="muted">Logged in as <strong>{user.name}</strong> ({user.role})</div>
+          <div>
+            <button className="button" onClick={() => setJoined(false)}>
+              Leave room
+            </button>
+          </div>
+        </div>
+
+        <div className="container">
+          <div className="card video-panel">
+            <VideoCall roomId={roomId} userId={user._id} onHangUp={() => setJoined(false)} />
+          </div>
+          {/* Only providers see the review/approve panel */}
+          {user.role === "provider" && (
+            <div className="card panel">
+              <NoteReview roomId={roomId} authToken={token} />
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-      <h1>Telehealth — WebRTC test</h1>
-      <p>
-        Enter any room ID, then open this same page in a second browser tab
-        (or incognito window) and enter the <em>same</em> room ID to test a
-        call between two peers.
-      </p>
-      <input
-        value={roomId}
-        onChange={(e) => setRoomId(e.target.value)}
-        placeholder="e.g. test-room-1"
-      />
-      <button onClick={() => roomId && setJoined(true)} style={{ marginLeft: "0.5rem" }}>
-        Join
-      </button>
+    <div className="app-wrapper">
+      <div className="topbar">
+        <h1>Telehealth</h1>
+        <div className="muted">{user.name} ({user.role}) — <button onClick={logout}>Log out</button></div>
+      </div>
+
+      <div className="container">
+        <div className="card auth-card">
+          <p>Enter a room ID to join or start a consultation.</p>
+          <input
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+            placeholder="e.g. test-room-1"
+          />
+          <div className="actions">
+            <button className="button" onClick={() => roomId && setJoined(true)}>
+              Join
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

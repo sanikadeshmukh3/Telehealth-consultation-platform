@@ -8,11 +8,16 @@ import authRoutes from "./routes/auth.js";
 import consultationRoutes from "./routes/consultations.js";
 import { registerSignalingHandlers } from "./sockets/signaling.js";
 import { registerTranscriptionHandlers } from "./sockets/transcription.js";
+import notesRoutes from "./routes/notes.js";
 
 dotenv.config();
 
+// Support multiple allowed origins (e.g. localhost for same-machine testing,
+// plus an ngrok URL for cross-device testing) rather than just one.
+const allowedOrigins = process.env.CLIENT_URL.split(",").map((url) => url.trim());
+
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 // Simple health check so we can confirm the server is alive before wiring up
@@ -23,13 +28,14 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/consultations", consultationRoutes);
+app.use("/api/notes", notesRoutes);
 
 // --- HTTP + Socket.io share the same server instance ---
 // We need this (rather than app.listen) because Socket.io needs direct
 // access to the underlying HTTP server to attach WebSocket connections.
 const httpServer = http.createServer(app);
 const io = new SocketIOServer(httpServer, {
-  cors: { origin: process.env.CLIENT_URL, credentials: true },
+  cors: { origin: allowedOrigins, credentials: true },
 });
 
 // WebRTC signaling — relays offer/answer/ICE candidates between peers.

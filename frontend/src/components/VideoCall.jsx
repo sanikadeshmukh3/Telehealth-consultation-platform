@@ -10,42 +10,31 @@ export default function VideoCall({ roomId, userId, onHangUp }) {
   }
 
   return (
-    <div style={{ padding: "1rem" }}>
+    <div className="video-card">
       <p>
         Status: <strong>{connectionState}</strong> — Room: <code>{roomId}</code>
       </p>
 
       {error && (
-        <p style={{ color: "red", maxWidth: "500px" }}>
-          Error: {error}
-        </p>
+        <p className="error">Error: {error}</p>
       )}
 
-      <div style={{ display: "flex", gap: "1rem" }}>
+      <div className="video-grid">
         <div>
           <p>You</p>
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{ width: "320px", background: "#000", borderRadius: "8px" }}
-          />
+          <video ref={localVideoRef} autoPlay playsInline muted />
         </div>
         <div>
           <p>Remote peer</p>
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            style={{ width: "320px", background: "#000", borderRadius: "8px" }}
-          />
+          <video ref={remoteVideoRef} autoPlay playsInline />
         </div>
       </div>
 
-      <button onClick={handleHangUp} style={{ marginTop: "1rem" }}>
-        Hang up
-      </button>
+      <div className="mt-1">
+        <button className="button" onClick={handleHangUp}>
+          Hang up
+        </button>
+      </div>
     </div>
   );
 }

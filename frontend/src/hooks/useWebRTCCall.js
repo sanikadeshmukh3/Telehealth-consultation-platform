@@ -13,6 +13,7 @@ export function useWebRTCCall({ roomId, userId }) {
   const socketRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const remoteSocketIdRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
 
   const [connectionState, setConnectionState] = useState("idle");
   const [error, setError] = useState(null);
@@ -52,6 +53,7 @@ export function useWebRTCCall({ roomId, userId }) {
         const mediaRecorder = new MediaRecorder(audioOnlyStream, {
           mimeType: "audio/webm;codecs=opus",
         });
+        mediaRecorderRef.current = mediaRecorder;
 
         mediaRecorder.ondataavailable = (event) => {
           console.log("Audio chunk captured:", event.data.size, "bytes");
@@ -136,7 +138,8 @@ export function useWebRTCCall({ roomId, userId }) {
 
     return () => {
       localStream?.getTracks().forEach((track) => track.stop());
-      mediaRecorder?.stop();
+      mediaRecorderRef.current?.stop();
+      mediaRecorderRef.current = null;
       peerConnectionRef.current?.close();
       socketRef.current?.emit("hang-up", { roomId });
       socketRef.current?.disconnect();

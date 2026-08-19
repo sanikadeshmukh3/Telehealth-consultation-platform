@@ -47,8 +47,16 @@ export function createLiveTranscriptionConnection({ onTranscript, onError }) {
     onError?.(err);
   });
 
-  connection.on(LiveTranscriptionEvents.Close, () => {
-    console.log("Deepgram connection closed");
+  connection.on(LiveTranscriptionEvents.Close, (event) => {
+    console.log("Deepgram connection closed:", {
+      code: event?.code,
+      reason: event?.reason,
+    });
+  });
+
+  connection.on(LiveTranscriptionEvents.Error, (err) => {
+    console.error("Deepgram error (full):", JSON.stringify(err, null, 2));
+    onError?.(err);
   });
 
   return connection;
