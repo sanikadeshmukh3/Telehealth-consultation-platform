@@ -29,7 +29,9 @@ function startAgentLoopForRoom(io, roomId) {
           agentFlags: note.agentFlags,
           revisionCount: note.revisionCount,
         });
-        console.log(`Agent updated note for room ${roomId} (revision ${note.revisionCount})`);
+        console.log(
+          `Agent updated note for room ${roomId} (revision ${note.revisionCount})`,
+        );
       }
     } catch (err) {
       console.error(`Agent update failed for room ${roomId}:`, err);
@@ -77,7 +79,7 @@ export function registerTranscriptionHandlers(io) {
           if (!isFinal) return;
 
           const offsetSeconds = Math.round(
-            (Date.now() - roomStartTimes.get(currentRoomId)) / 1000
+            (Date.now() - roomStartTimes.get(currentRoomId)) / 1000,
           );
 
           try {
@@ -88,7 +90,9 @@ export function registerTranscriptionHandlers(io) {
               offsetSeconds,
             });
 
-            console.log(`Saved transcript chunk: "${text}" (${offsetSeconds}s)`);
+            console.log(
+              `Saved transcript chunk: "${text}" (${offsetSeconds}s)`,
+            );
 
             io.to(currentRoomId).emit("transcript-final", {
               speaker: currentSpeaker,
@@ -103,13 +107,26 @@ export function registerTranscriptionHandlers(io) {
         onError: (err) => {
           socket.emit("transcription-error", { message: err.message });
         },
+        onOpen: () => {
+          // Let the client know the Deepgram connection is ready to receive audio.
+          socket.emit("transcription-ready");
+        },
       });
     });
 
     // Audio arrives as raw binary chunks from the client's MediaRecorder.
     socket.on("audio-chunk", (chunk) => {
-      if (deepgramConnection) {
+      if (!deepgramConnection) {
+        console.log("audio-chunk received but no deepgramConnection yet");
+        return;
+      }
+      try {
+        console.log(
+          `Forwarding audio chunk to Deepgram: ${chunk.length ?? chunk.byteLength} bytes, readyState=${deepgramConnection.getReadyState?.()}`,
+        );
         deepgramConnection.send(chunk);
+      } catch (err) {
+        console.error("Error sendir34ng chunk to Deepgram:", err);
       }
     });
 

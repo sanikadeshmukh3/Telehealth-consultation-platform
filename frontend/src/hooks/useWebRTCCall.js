@@ -62,15 +62,35 @@ export function useWebRTCCall({ roomId, userId }) {
           }
         };
 
-        // Fires every 250ms — small enough for near-real-time transcription
-        // without flooding the socket connection.
-        mediaRecorder.start(250);
+        // Defer starting the recorder until the server confirms Deepgram is
+        // ready to receive audio. This avoids sending chunks before the
+        // live connection is established and prevents early-close behavior.
+        let recorderStarted = false;
+        function startRecorder() {
+          if (!recorderStarted) {
+            try {
+              mediaRecorder.start(250);
+              recorderStarted = true;
+            } catch (err) {
+              console.warn("Failed to start media recorder:", err);
+            }
+          }
+        }
+
+        // Listen for the server ack that Deepgram is ready.
+        socket.on("transcription-ready", () => startRecorder());
+
+        // Fallback: if we don't get an ack within 2s, start anyway.
+        const startFallback = setTimeout(() => startRecorder(), 2000);
 
         socket.emit("start-transcription", {
           consultationId: roomId, // using roomId as a stand-in until real consultation booking is wired up
           roomId,
           speaker: "patient", // hardcoded for now — will come from logged-in user's role later
         });
+
+        // Clear fallback when leaving.
+        const clearStartFallback = () => clearTimeout(startFallback);
 
         setConnectionState("connecting");
 
@@ -79,6 +99,8 @@ export function useWebRTCCall({ roomId, userId }) {
         localStream
           .getTracks()
           .forEach((track) => pc.addTrack(track, localStream));
+
+        console.log("Created RTCPeerConnection and added local tracks");
 
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
@@ -97,21 +119,26 @@ export function useWebRTCCall({ roomId, userId }) {
         };
 
         socket.on("peer-joined", async ({ socketId }) => {
+          console.log("peer-joined:", socketId);
           remoteSocketIdRef.current = socketId;
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           socket.emit("offer", { targetSocketId: socketId, sdp: offer });
+          console.log("Sent offer to", socketId);
         });
 
         socket.on("offer", async ({ sdp, fromSocketId }) => {
+          console.log("Received offer from", fromSocketId);
           remoteSocketIdRef.current = fromSocketId;
           await pc.setRemoteDescription(new RTCSessionDescription(sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           socket.emit("answer", { targetSocketId: fromSocketId, sdp: answer });
+          console.log("Sent answer to", fromSocketId);
         });
 
         socket.on("answer", async ({ sdp }) => {
+          console.log("Received answer");
           await pc.setRemoteDescription(new RTCSessionDescription(sdp));
         });
 
@@ -126,6 +153,10 @@ export function useWebRTCCall({ roomId, userId }) {
         socket.on("peer-left", () => {
           setConnectionState("disconnected");
           if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+        });
+        // ensure fallback cleanup hook is removed when socket disconnects
+        socket.on("disconnect", () => {
+          try { clearStartFallback(); } catch (e) {}
         });
       } catch (err) {
         console.error("WebRTC setup failed:", err);
@@ -143,6 +174,7 @@ export function useWebRTCCall({ roomId, userId }) {
       peerConnectionRef.current?.close();
       socketRef.current?.emit("hang-up", { roomId });
       socketRef.current?.disconnect();
+      try { clearStartFallback(); } catch (e) {}
     };
   }, [roomId, userId]);
 

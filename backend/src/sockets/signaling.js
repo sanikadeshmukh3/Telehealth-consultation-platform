@@ -26,6 +26,9 @@ export function registerSignalingHandlers(io) {
       socket.to(roomId).emit("peer-joined", { socketId: socket.id, userId });
 
       console.log(`Socket ${socket.id} (user ${userId}) joined room ${roomId}`);
+      // Also log current sockets in room for debugging
+      const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+      console.log(`Room ${roomId} has sockets:`, clients);
     });
 
     // Relay an SDP offer to a specific peer (not broadcast to the whole

@@ -22,7 +22,7 @@ function getDeepgramClient() {
  * browser the audio originated from, rather than relying on Deepgram's
  * diarization to guess who's speaking from a single mixed stream.
  */
-export function createLiveTranscriptionConnection({ onTranscript, onError }) {
+export function createLiveTranscriptionConnection({ onTranscript, onError, onOpen }) {
   const connection = getDeepgramClient().listen.live({
     model: "nova-2",
     smart_format: true,
@@ -33,6 +33,7 @@ export function createLiveTranscriptionConnection({ onTranscript, onError }) {
 
   connection.on(LiveTranscriptionEvents.Open, () => {
     console.log("Deepgram connection opened");
+    onOpen?.();
   });
 
   connection.on(LiveTranscriptionEvents.Transcript, (data) => {

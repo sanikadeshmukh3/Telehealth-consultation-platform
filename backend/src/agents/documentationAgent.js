@@ -124,6 +124,7 @@ ${transcriptText}`;
   note.agentFlags = result.agentFlags;
   note.revisionCount += 1;
   await note.save();
+  console.log(`Saved ConsultationNote for consultation=${note.consultation} id=${note._id} revision=${note.revisionCount}`);
 
   await TranscriptChunk.updateMany(
     { _id: { $in: newChunks.map((c) => c._id) } },
