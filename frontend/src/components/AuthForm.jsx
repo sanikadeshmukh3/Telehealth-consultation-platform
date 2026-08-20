@@ -24,35 +24,50 @@ export default function AuthForm() {
   }
 
   return (
-    <div className="card auth-card">
-      <h2>{mode === "login" ? "Log in" : "Sign up"}</h2>
+    <div className="auth-card">
+      <h2>{mode === "login" ? "Welcome back" : "Let's get you set up"}</h2>
+      <span className="subhead">
+        {mode === "login"
+          ? "Log in to join your next visit."
+          : "Takes about a minute."}
+      </span>
 
       <form onSubmit={handleSubmit}>
         {mode === "register" && (
           <>
-            <div>
+            <div className="field">
               <label>Name</label>
               <input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
 
-            <div>
+            <div className="field">
               <label>I am a</label>
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="patient">Patient</option>
-                <option value="provider">Provider</option>
-              </select>
+              <div className="role-picker">
+                <div
+                  className={`role-option ${role === "patient" ? "active" : ""}`}
+                  onClick={() => setRole("patient")}
+                >
+                  Patient
+                </div>
+                <div
+                  className={`role-option ${role === "provider" ? "active" : ""}`}
+                  onClick={() => setRole("provider")}
+                >
+                  Provider
+                </div>
+              </div>
             </div>
 
             {role === "provider" && (
               <>
-                <div>
+                <div className="field">
                   <label>Specialty</label>
                   <input
                     value={specialty}
                     onChange={(e) => setSpecialty(e.target.value)}
                   />
                 </div>
-                <div>
+                <div className="field">
                   <label>License number</label>
                   <input
                     value={licenseNumber}
@@ -64,7 +79,7 @@ export default function AuthForm() {
           </>
         )}
 
-        <div>
+        <div className="field">
           <label>Email</label>
           <input
             type="email"
@@ -74,7 +89,7 @@ export default function AuthForm() {
           />
         </div>
 
-        <div>
+        <div className="field">
           <label>Password</label>
           <input
             type="password"
@@ -87,12 +102,12 @@ export default function AuthForm() {
 
         {error && <p className="error">{error}</p>}
 
-        <button className="button full-width" type="submit" disabled={loading}>
-          {loading ? "Please wait..." : mode === "login" ? "Log in" : "Sign up"}
+        <button className="btn btn-primary btn-full" type="submit" disabled={loading}>
+          {loading ? "Please wait…" : mode === "login" ? "Log in" : "Sign up"}
         </button>
       </form>
 
-      <p className="mt-1">
+      <p className="switch-row">
         {mode === "login" ? (
           <>
             No account?{" "}

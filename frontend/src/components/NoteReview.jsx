@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:5001";
-const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:5001";
+const SOCKET_URL = import.meta.env.VITE_SERVER_URL || "";
+const API_URL = import.meta.env.VITE_SERVER_URL || "";
 
 // Sits alongside the video call and shows the agent's live-updating draft
 // note. A provider can edit the fields before approving — their edits
@@ -91,18 +91,18 @@ export default function NoteReview({ roomId, authToken }) {
   }
 
   return (
-    <div className="card panel">
-      <h2>
-        Consultation Note{" "}
-        <span style={{ fontSize: "0.8rem", color: status === "approved" ? "green" : "#888" }}>
-          ({status}, revision {revisionCount})
+    <div className="panel note-review">
+      <div className="note-header">
+        <h2>Consultation note</h2>
+        <span className={`note-status note-status--${status}`}>
+          {status} · rev {revisionCount}
         </span>
-      </h2>
+      </div>
 
       {agentFlags.length > 0 && (
-        <div style={{ background: "#fff3cd", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
-          <strong>Needs your attention:</strong>
-          <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.2rem" }}>
+        <div className="flags-callout">
+          <strong>Needs your attention</strong>
+          <ul>
             {agentFlags.map((flag, i) => (
               <li key={i}>{flag}</li>
             ))}
@@ -111,26 +111,26 @@ export default function NoteReview({ roomId, authToken }) {
       )}
 
       {["subjective", "objective", "assessment", "plan"].map((field) => (
-        <div key={field}>
-          <label style={{ display: "block", fontWeight: "bold", textTransform: "capitalize" }}>
-            {field}
-          </label>
+        <div className="soap-field" key={field}>
+          <label>{field}</label>
           <textarea
             value={draftSOAP[field]}
             onChange={(e) => updateField(field, e.target.value)}
             disabled={status === "approved"}
             rows={3}
+            placeholder="Nothing captured yet"
           />
         </div>
       ))}
 
       {actionItems.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <strong>Action items:</strong>
+        <div className="action-items">
+          <strong>Action items</strong>
           <ul>
             {actionItems.map((item, i) => (
               <li key={i}>
-                <em>{item.type}</em>: {item.detail}
+                <span className="action-type">{item.type.replace("_", " ")}</span>
+                {item.detail}
               </li>
             ))}
           </ul>
@@ -139,8 +139,12 @@ export default function NoteReview({ roomId, authToken }) {
 
       {error && <p className="error">{error}</p>}
 
-      <button className="button" onClick={handleApprove} disabled={saving || status === "approved"}>
-        {status === "approved" ? "Approved" : saving ? "Saving..." : "Approve & Sign Note"}
+      <button
+        className="btn btn-primary btn-full mt-1"
+        onClick={handleApprove}
+        disabled={saving || status === "approved"}
+      >
+        {status === "approved" ? "Approved" : saving ? "Saving…" : "Approve & sign note"}
       </button>
     </div>
   );
