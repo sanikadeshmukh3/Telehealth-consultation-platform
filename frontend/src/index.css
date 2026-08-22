@@ -778,3 +778,11 @@ input:focus-visible, select:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+.note-status--scheduled { background: var(--mint); color: var(--clover-dark); }
+.note-status--in_progress { background: rgba(255, 182, 39, 0.22); color: #a06400; }
+.note-status--cancelled { background: rgba(255, 107, 87, 0.18); color: var(--coral-dark); }
+
+.book-toggle { margin-bottom: 1.5rem; }
+.book-form { text-align: left; }
+.book-form h3 { margin-bottom: 1rem; }

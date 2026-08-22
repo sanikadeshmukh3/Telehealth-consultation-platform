@@ -2,17 +2,10 @@ import { createLiveTranscriptionConnection } from "../services/deepgramService.j
 import TranscriptChunk from "../models/TranscriptChunk.js";
 import { updateDraftNote } from "../agents/documentationAgent.js";
 
-// Tracks when each room's call actually started, so transcript chunks can
-// store an offset in seconds ("2:15 into the call") rather than a raw
-// timestamp.
 const roomStartTimes = new Map();
-
-// Tracks the running agent-update timer per room, plus how many sockets
-// are currently transcribing in that room (so we only clear the timer once
-// EVERY participant has left, not after the first one disconnects).
 const roomAgentTimers = new Map(); // roomId -> { interval, count }
 
-function startAgentLoopForRoom(io, roomId) {
+function startAgentLoopForRoom(io, roomId, consultationId) {
   const existing = roomAgentTimers.get(roomId);
   if (existing) {
     existing.count += 1;
@@ -21,7 +14,7 @@ function startAgentLoopForRoom(io, roomId) {
 
   const interval = setInterval(async () => {
     try {
-      const note = await updateDraftNote(roomId);
+      const note = await updateDraftNote(consultationId);
       if (note) {
         io.to(roomId).emit("note-updated", {
           draftSOAP: note.draftSOAP,
@@ -29,14 +22,12 @@ function startAgentLoopForRoom(io, roomId) {
           agentFlags: note.agentFlags,
           revisionCount: note.revisionCount,
         });
-        console.log(
-          `Agent updated note for room ${roomId} (revision ${note.revisionCount})`,
-        );
+        console.log(`Agent updated note for room ${roomId} (revision ${note.revisionCount})`);
       }
     } catch (err) {
       console.error(`Agent update failed for room ${roomId}:`, err);
     }
-  }, 30000); // every 30 seconds
+  }, 30000);
 
   roomAgentTimers.set(roomId, { interval, count: 1 });
 }
@@ -61,25 +52,22 @@ export function registerTranscriptionHandlers(io) {
 
     socket.on("start-transcription", ({ consultationId, roomId, speaker }) => {
       currentConsultationId = consultationId;
-      currentSpeaker = speaker; // "patient" | "provider"
+      currentSpeaker = speaker;
       currentRoomId = roomId;
 
       if (!roomStartTimes.has(roomId)) {
         roomStartTimes.set(roomId, Date.now());
       }
 
-      startAgentLoopForRoom(io, roomId);
+      startAgentLoopForRoom(io, roomId, consultationId);
 
       deepgramConnection = createLiveTranscriptionConnection({
         onTranscript: async ({ text, isFinal }) => {
-          // Always send interim results back immediately for live "typing"
-          // captions, but only persist the FINAL version.
           socket.emit("transcript-interim", { text, speaker: currentSpeaker });
-
           if (!isFinal) return;
 
           const offsetSeconds = Math.round(
-            (Date.now() - roomStartTimes.get(currentRoomId)) / 1000,
+            (Date.now() - roomStartTimes.get(currentRoomId)) / 1000
           );
 
           try {
@@ -90,9 +78,7 @@ export function registerTranscriptionHandlers(io) {
               offsetSeconds,
             });
 
-            console.log(
-              `Saved transcript chunk: "${text}" (${offsetSeconds}s)`,
-            );
+            console.log(`Saved transcript chunk: "${text}" (${offsetSeconds}s)`);
 
             io.to(currentRoomId).emit("transcript-final", {
               speaker: currentSpeaker,
@@ -107,26 +93,12 @@ export function registerTranscriptionHandlers(io) {
         onError: (err) => {
           socket.emit("transcription-error", { message: err.message });
         },
-        onOpen: () => {
-          // Let the client know the Deepgram connection is ready to receive audio.
-          socket.emit("transcription-ready");
-        },
       });
     });
 
-    // Audio arrives as raw binary chunks from the client's MediaRecorder.
     socket.on("audio-chunk", (chunk) => {
-      if (!deepgramConnection) {
-        console.log("audio-chunk received but no deepgramConnection yet");
-        return;
-      }
-      try {
-        console.log(
-          `Forwarding audio chunk to Deepgram: ${chunk.length ?? chunk.byteLength} bytes, readyState=${deepgramConnection.getReadyState?.()}`,
-        );
+      if (deepgramConnection) {
         deepgramConnection.send(chunk);
-      } catch (err) {
-        console.error("Error sendir34ng chunk to Deepgram:", err);
       }
     });
 

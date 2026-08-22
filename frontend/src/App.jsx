@@ -3,12 +3,10 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import AuthForm from "./components/AuthForm";
 import VideoCall from "./components/VideoCall";
 import NoteReview from "./components/NoteReview";
-import PastVisits from "./components/PastVisits";
+import Consultations from "./components/Consultations";
+import BookConsultation from "./components/BookConsultation";
 
 function BlobIllustration() {
-  // Two overlapping figures (patient + provider) inside the signature
-  // "care blob" shape — abstract by design, no real photography or
-  // identifiable likeness involved.
   return (
     <svg className="blob-illustration" viewBox="0 0 320 300" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
@@ -32,34 +30,14 @@ function BlobIllustration() {
   );
 }
 
-function CareFigures() {
-  return (
-    <svg className="care-figures" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="100" cy="55" r="34" fill="#D9F0E1" />
-      <circle cx="50" cy="95" r="40" fill="#FFB627" opacity="0.9" />
-      <path
-        d="M62 130Q75 118 90 130"
-        stroke="#1F6F5C"
-        strokeWidth="4"
-        strokeLinecap="round"
-        fill="none"
-        opacity="0.6"
-      />
-    </svg>
-  );
-}
-
 function AppContent() {
   const { user, token, logout } = useAuth();
-  const [roomId, setRoomId] = useState("");
-  const [joined, setJoined] = useState(false);
+  const [activeConsultation, setActiveConsultation] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Hanging up (or leaving) should fully return to the home screen, not
-  // just toggle the "joined" flag — clearing roomId too so the next visit
-  // starts from a clean slate rather than re-showing the last room code.
   function returnHome() {
-    setJoined(false);
-    setRoomId("");
+    setActiveConsultation(null);
+    setRefreshKey((k) => k + 1); // status may have changed (e.g. -> completed)
   }
 
   if (!user) {
@@ -84,7 +62,7 @@ function AppContent() {
     );
   }
 
-  if (joined) {
+  if (activeConsultation) {
     return (
       <div className="app-shell">
         <div className="topbar">
@@ -105,11 +83,20 @@ function AppContent() {
         <div className="stage-wrap">
           <div className="stage">
             <div className="card video-card">
-              <VideoCall roomId={roomId} userId={user._id} onHangUp={returnHome} />
+              <VideoCall
+                roomId={activeConsultation.roomId}
+                consultationId={activeConsultation._id}
+                userId={user._id}
+                speaker={user.role}
+                onHangUp={returnHome}
+              />
             </div>
-            {/* Only providers see the review/approve panel */}
             {user.role === "provider" && (
-              <NoteReview roomId={roomId} authToken={token} />
+              <NoteReview
+                roomId={activeConsultation.roomId}
+                consultationId={activeConsultation._id}
+                authToken={token}
+              />
             )}
           </div>
         </div>
@@ -135,30 +122,30 @@ function AppContent() {
       </div>
 
       <div className="home-wrap">
-        <div className="home-hero">
-          <span className="eyebrow">Ready when you are</span>
-          <h2>Join a consultation</h2>
-          <p className="lead">
-            Enter the room code your patient or provider shared with you to
-            start the video visit.
-          </p>
-          <div className="join-row">
-            <input
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              placeholder="e.g. test-room-1"
-            />
-            <button
-              className="btn btn-primary"
-              onClick={() => roomId && setJoined(true)}
-            >
-              Join call
-            </button>
+        <div className="home-grid">
+          <div>
+            {user.role === "provider" && (
+              <BookConsultation authToken={token} onBooked={() => setRefreshKey((k) => k + 1)} />
+            )}
+            {user.role === "patient" && (
+              <div className="home-hero">
+                <span className="eyebrow">Ready when you are</span>
+                <h2>Your visits</h2>
+                <p className="lead">
+                  Your provider will schedule visits here — join from the
+                  Upcoming list when it's time.
+                </p>
+              </div>
+            )}
           </div>
-          <CareFigures />
-        </div>
 
-        <PastVisits onSelect={(id) => setRoomId(id)} />
+          <Consultations
+            user={user}
+            authToken={token}
+            onJoin={setActiveConsultation}
+            refreshKey={refreshKey}
+          />
+        </div>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ const ICE_SERVERS = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
 
-export function useWebRTCCall({ roomId, userId }) {
+export function useWebRTCCall({ roomId, consultationId, userId, speaker }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const socketRef = useRef(null);
@@ -45,6 +45,10 @@ export function useWebRTCCall({ roomId, userId }) {
         socketRef.current = socket;
         socket.emit("join-room", { roomId, userId });
 
+        socket.on("join-rejected", ({ reason }) => {
+          setError(reason);
+          setConnectionState("error");
+        });
         // --- Audio capture for transcription ---
         // Captures ONLY this participant's own mic audio (not the peer's) and
         // streams it to the backend for Deepgram. Runs independently of the
@@ -84,9 +88,9 @@ export function useWebRTCCall({ roomId, userId }) {
         const startFallback = setTimeout(() => startRecorder(), 2000);
 
         socket.emit("start-transcription", {
-          consultationId: roomId, // using roomId as a stand-in until real consultation booking is wired up
+          consultationId,
           roomId,
-          speaker: "patient", // hardcoded for now — will come from logged-in user's role later
+          speaker, // now comes from the logged-in user's actual role
         });
 
         // Clear fallback when leaving.
@@ -156,7 +160,9 @@ export function useWebRTCCall({ roomId, userId }) {
         });
         // ensure fallback cleanup hook is removed when socket disconnects
         socket.on("disconnect", () => {
-          try { clearStartFallback(); } catch (e) {}
+          try {
+            clearStartFallback();
+          } catch (e) {}
         });
       } catch (err) {
         console.error("WebRTC setup failed:", err);
@@ -174,9 +180,11 @@ export function useWebRTCCall({ roomId, userId }) {
       peerConnectionRef.current?.close();
       socketRef.current?.emit("hang-up", { roomId });
       socketRef.current?.disconnect();
-      try { clearStartFallback(); } catch (e) {}
+      try {
+        clearStartFallback();
+      } catch (e) {}
     };
-  }, [roomId, userId]);
+  }, [roomId, consultationId, userId, speaker]);
 
   function hangUp() {
     socketRef.current?.emit("hang-up", { roomId });

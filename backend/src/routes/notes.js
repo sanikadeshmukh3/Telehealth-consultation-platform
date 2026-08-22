@@ -4,13 +4,11 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Fetch the current note for a room — used to load existing state when
-// the review panel mounts (e.g. after a page refresh).
-router.get("/:roomId", requireAuth, async (req, res) => {
+router.get("/:consultationId", requireAuth, async (req, res) => {
   try {
-    const note = await ConsultationNote.findOne({ consultation: req.params.roomId });
+    const note = await ConsultationNote.findOne({ consultation: req.params.consultationId });
     if (!note) {
-      return res.status(404).json({ error: "No note found for this room yet" });
+      return res.status(404).json({ error: "No note found for this consultation yet" });
     }
     res.json(note);
   } catch (err) {
@@ -19,17 +17,13 @@ router.get("/:roomId", requireAuth, async (req, res) => {
   }
 });
 
-// Provider approves the note: their edited version becomes finalSOAP,
-// status moves to "approved", and we record who/when for an audit trail.
-// Restricted to providers only — patients shouldn't be able to self-approve
-// their own clinical documentation.
-router.patch("/:roomId/approve", requireAuth, requireRole("provider"), async (req, res) => {
+router.patch("/:consultationId/approve", requireAuth, requireRole("provider"), async (req, res) => {
   try {
     const { finalSOAP, actionItems } = req.body;
 
-    const note = await ConsultationNote.findOne({ consultation: req.params.roomId });
+    const note = await ConsultationNote.findOne({ consultation: req.params.consultationId });
     if (!note) {
-      return res.status(404).json({ error: "No note found for this room" });
+      return res.status(404).json({ error: "No note found for this consultation" });
     }
 
     note.finalSOAP = finalSOAP;

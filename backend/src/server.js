@@ -9,6 +9,7 @@ import consultationRoutes from "./routes/consultations.js";
 import { registerSignalingHandlers } from "./sockets/signaling.js";
 import { registerTranscriptionHandlers } from "./sockets/transcription.js";
 import notesRoutes from "./routes/notes.js";
+import usersRoutes from "./routes/users.js";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/consultations", consultationRoutes);
 app.use("/api/notes", notesRoutes);
+app.use("/api/users", usersRoutes);
 
 // --- HTTP + Socket.io share the same server instance ---
 // We need this (rather than app.listen) because Socket.io needs direct

@@ -4,11 +4,7 @@ import { io } from "socket.io-client";
 const SOCKET_URL = import.meta.env.VITE_SERVER_URL || "";
 const API_URL = import.meta.env.VITE_SERVER_URL || "";
 
-// Sits alongside the video call and shows the agent's live-updating draft
-// note. A provider can edit the fields before approving — their edits
-// become finalSOAP, distinct from the agent's original draftSOAP, so
-// there's always a record of what the AI produced vs. what was signed off.
-export default function NoteReview({ roomId, authToken }) {
+export default function NoteReview({ roomId, consultationId, authToken }) {
   const [draftSOAP, setDraftSOAP] = useState({
     subjective: "",
     objective: "",
@@ -22,12 +18,13 @@ export default function NoteReview({ roomId, authToken }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // Listen for live updates from the agent as it revises the note during
-  // the call — this is a SEPARATE socket connection from the video call's,
-  // since this component may be mounted independently (e.g. a provider
-  // reviewing after the call ended, on a different page).
   useEffect(() => {
     const socket = io(SOCKET_URL);
+
+    // This socket needs to actually join the room to receive "note-updated"
+    // broadcasts (io.to(roomId).emit(...) only reaches sockets that have
+    // joined that room) — previously missing, so live updates never arrived.
+    socket.emit("watch-notes", { roomId });
 
     socket.on("note-updated", (data) => {
       setDraftSOAP(data.draftSOAP);
@@ -39,12 +36,10 @@ export default function NoteReview({ roomId, authToken }) {
     return () => socket.disconnect();
   }, [roomId]);
 
-  // Load any existing note on mount (covers the case where the agent
-  // already produced revisions before this panel was opened).
   useEffect(() => {
     async function loadExisting() {
       try {
-        const res = await fetch(`${API_URL}/api/notes/${roomId}`, {
+        const res = await fetch(`${API_URL}/api/notes/${consultationId}`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
         if (res.ok) {
@@ -60,7 +55,7 @@ export default function NoteReview({ roomId, authToken }) {
       }
     }
     loadExisting();
-  }, [roomId, authToken]);
+  }, [consultationId, authToken]);
 
   function updateField(field, value) {
     setDraftSOAP((prev) => ({ ...prev, [field]: value }));
@@ -70,7 +65,7 @@ export default function NoteReview({ roomId, authToken }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/notes/${roomId}/approve`, {
+      const res = await fetch(`${API_URL}/api/notes/${consultationId}/approve`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

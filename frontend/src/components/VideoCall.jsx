@@ -8,9 +8,9 @@ const STATE_LABELS = {
   error: "Something went wrong",
 };
 
-export default function VideoCall({ roomId, userId, onHangUp }) {
+export default function VideoCall({ roomId, consultationId, userId, speaker,onHangUp }) {
   const { localVideoRef, remoteVideoRef, connectionState, error, hangUp } =
-    useWebRTCCall({ roomId, userId });
+    useWebRTCCall({ roomId, consultationId, userId, speaker });
 
   function handleHangUp() {
     hangUp();

@@ -32,10 +32,18 @@ const consultationNoteSchema = new mongoose.Schema(
     // NOTE: temporarily a String instead of an ObjectId ref, matching the same
     // fix applied to TranscriptChunk — revert once real consultations are wired up.
     consultation: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Consultation",
       required: true,
       unique: true,
     },
+
+    // Tracks who has been part of this room's call, so a user can later
+    // look up "my past visits." Populated by the join-room socket handler,
+    // not set directly by the client. Once real consultation booking
+    // exists, this can likely be derived from Consultation.participants
+    // instead and removed from here.
+  
 
     // The agent's in-progress draft, updated repeatedly during the call.
     draftSOAP: { type: soapSchema, default: () => ({}) },

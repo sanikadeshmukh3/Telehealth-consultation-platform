@@ -8,7 +8,8 @@ const transcriptChunkSchema = new mongoose.Schema(
     // yet. Once that's connected, this should go back to:
     //   { type: mongoose.Schema.Types.ObjectId, ref: "Consultation", required: true }
     consultation: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Consultation",
       required: true,
     },
 
@@ -29,7 +30,7 @@ const transcriptChunkSchema = new mongoose.Schema(
     // a draft update, so we don't reprocess the same text repeatedly.
     processedByAgent: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 transcriptChunkSchema.index({ consultation: 1, offsetSeconds: 1 });
